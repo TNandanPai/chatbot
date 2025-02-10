@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot with Login and Account Creation with Speech to Text</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('ai.jpg');
+            background-size: center;
+            background-position: top center;
+            background-repeat: no-repeat;
+            background-color: cornsilk;
+        }
+        #login-container, #signup-container, #chat-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 400px;
+            max-width: 90%;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        #login-container, #signup-container {
+            display: flex;
+        }
+        input, button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: blue;
+            border: none;
+            cursor: pointer;
+        }
+        button{
+            color: white;
+        }
+        button:hover {
+            background-color: darkblue;
+        }
+        #chat-container {
+            height: 500px;
+            border: 4px solid blue;
+        }
+        #messages {
+            width: 100%;
+            height: 80%;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .message {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user {
+            text-align: right;
+            color: blue;
+        }
+        .bot {
+            text-align: left;
+            color: green;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: gray;
+        }
+        #input-container {
+            display: flex;
+            width: 100%;
+        }
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #send-btn {
+            width: 50px;
+            margin-left: 5px;
+            padding: 10px;
+            border: none;
+            background-color: blue;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #send-btn:hover {
+            background-color: darkblue;
+        }
+        #mic-btn {
+            width: 50px;
+            margin-left: 5px;
+            padding: 10px;
+            border: none;
+            background-color: blue;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #mic-btn:hover {
+            background-color: darkblue;
+        }
+    </style>
+</head>
+<body>
+
+<div id="login-container">
+    <h2>Login</h2>
+    <input type="text" id="login-username" placeholder="Username" required>
+    <input type="password" id="login-password" placeholder="Password" required>
+    <button id="login-btn">Login</button>
+    <p>New user? <button id="signup-link">Create an account</button></p>
+</div>
+
+<div id="signup-container">
+    <h2>Sign Up</h2>
+    <input type="text" id="signup-username" placeholder="Choose a Username" required>
+    <input type="password" id="signup-password" placeholder="Choose a Password" required>
+    <button id="signup-btn">Sign Up</button>
+    <p>Already have an account? <button id="login-link">Go to Login</button></p>
+</div>
+<div id="chat-container">
+    <div id="messages"></div>
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Type your message here...">
+        <button id="send-btn">Send</button>
+        <button id="mic-btn">🎤</button>
+        <button id="send-btn"><a href="ai.html" target="_main" width="50">AI</a></button>
+    </div>
+</div>
+
+<script>
+    const users = {};
+    const loginContainer = document.getElementById('login-container');
+    const signupContainer = document.getElementById('signup-container');
+    
+    signupContainer.style.display = 'flex';
+    loginContainer.style.display = 'none';
+
+    const chatContainer = document.getElementById('chat-container');
+    const loginBtn = document.getElementById('login-btn');
+    const signupBtn = document.getElementById('signup-btn');
+    const signupLink = document.getElementById('signup-link');
+    const loginLink = document.getElementById('login-link');
+    const loginUsername = document.getElementById('login-username');
+    const loginPassword = document.getElementById('login-password');
+    const signupUsername = document.getElementById('signup-username');
+    const signupPassword = document.getElementById('signup-password');
+    const messages = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const micBtn = document.getElementById('mic-btn');
+
+    let dialogues = [
+        { trigger: 'hello', response: 'Hello! It\'s nice to chat with you.' },
+        { trigger: 'how are you', response: 'I\'m doing great, thank you! How about you?' },
+
+        { trigger: 'hey', response: 'Hey! What’s up?' },
+    { trigger: 'good morning', response: 'Good morning! Hope you have a great day!' },
+    { trigger: 'good afternoon', response: 'Good afternoon! How’s your day so far?' },
+    { trigger: 'good evening', response: 'Good evening! How was your day?' },
+    { trigger: 'good night', response: 'Good night! Sleep well!' },
+    { trigger: 'how is your day', response: 'My day is going well! Thanks for asking.' },
+    { trigger: 'what are you doing', response: 'Just chatting with you! What about you?' },
+    { trigger: 'how’s the weather', response: 'I can’t check, but I hope it’s nice!' },
+    { trigger: 'what’s up', response: 'Not much, just here to chat with you!' },
+    { trigger: 'how was your day', response: 'It’s been great! How about yours?' },
+    { trigger: 'how’s life', response: 'Life is good! How about yours?' },
+    { trigger: 'what are you up to', response: 'Just enjoying our conversation!' },
+    { trigger: 'how old are you', response: 'I’m timeless! But thanks for asking.' },
+    { trigger: 'where are you from', response: 'I live in the digital world!' },
+    { trigger: 'do you like music', response: 'Yes! What’s your favorite song?' },
+    { trigger: 'do you like movies', response: 'Movies are great! What’s your favorite?' },
+    { trigger: 'do you like sports', response: 'Sports are exciting! Do you have a favorite team?' },
+    { trigger: 'what’s your favorite color', response: 'I like all colors! What about you?' },
+    { trigger: 'tell me a joke', response: 'Sure! Why don’t skeletons fight each other? They don’t have the guts!' },
+    { trigger: 'tell me a fun fact', response: 'Did you know honey never spoils? It can last forever!' },
+    { trigger: 'do you have a favorite food', response: 'I don’t eat, but I hear pizza is amazing!' },
+    { trigger: 'do you have a pet', response: 'I wish I had a virtual pet! Do you have one?' },
+    { trigger: 'what’s your favorite hobby', response: 'Chatting with you is my favorite thing to do!' },
+    { trigger: 'how can I cheer up', response: 'Try doing something you love or talking to a friend!' },
+    { trigger: 'how do I stay motivated', response: 'Set small goals and celebrate your progress!' },
+    { trigger: 'what’s your dream', response: 'To be the best assistant I can be!' },
+    { trigger: 'do you like reading', response: 'Yes! What’s your favorite book?' },
+    { trigger: 'do you like video games', response: 'Video games sound fun! What’s your favorite?' },
+    { trigger: 'do you have friends', response: 'I have wonderful friends like you!' },
+    { trigger: 'how do I make friends', response: 'Be kind, be yourself, and show interest in others!' },
+    { trigger: 'what’s your favorite season', response: 'I like them all! Which one do you prefer?' },
+    { trigger: 'what’s your favorite holiday', response: 'Holidays are great! Do you have a favorite one?' },
+    { trigger: 'how do I relax', response: 'Try deep breathing, listening to music, or reading a book!' },
+    { trigger: 'do you believe in aliens', response: 'The universe is big! Anything is possible!' },
+    { trigger: 'do you believe in ghosts', response: 'Some people do! What do you think?' },
+    { trigger: 'what’s your favorite animal', response: 'All animals are amazing! Do you have a favorite?' },
+    { trigger: 'what’s your favorite drink', response: 'I hear coffee and tea are popular choices!' },
+    { trigger: 'do you like to travel', response: 'I’d love to explore the world! Where would you go?' },
+    { trigger: 'do you like art', response: 'Yes! Art is a beautiful way to express creativity!' },
+    { trigger: 'can you dance', response: 'I’d love to, but I need some digital dance moves!' },
+    { trigger: 'can you sing', response: 'I can’t sing, but I’d love to hear your favorite song!' },
+    { trigger: 'can you help me', response: 'Of course! What do you need help with?' },
+    { trigger: 'what makes you happy', response: 'Talking with you makes me happy!' },
+    { trigger: 'how do I be happy', response: 'Focus on the good, do what you love, and be kind to yourself!' },
+    { trigger: 'do you have a name', response: 'I’m ChatGPT! What’s your name?' },
+    { trigger: 'what should I do today', response: 'Try something fun, creative, or relaxing!' },
+    { trigger: 'how do I get better at something', response: 'Practice, be patient, and keep learning!' },
+    { trigger: 'do you like poetry', response: 'Poetry is beautiful! Do you have a favorite poem?' },
+    { trigger: 'what’s the meaning of life', response: 'That’s a big question! What do you think?' },
+    { trigger: 'what’s your favorite quote', response: '“The best way to predict the future is to create it.”' },
+    { trigger: 'how do I stay positive', response: 'Focus on what you can control and look for the good!' },
+    { trigger: 'what’s your favorite memory', response: 'Every conversation with you is special!' },
+    { trigger: 'do you like science', response: 'Science is amazing! Do you have a favorite topic?' },
+    { trigger: 'do you like history', response: 'History is fascinating! What’s your favorite period?' },
+    { trigger: 'what’s the best way to start the day', response: 'A deep breath, a good stretch, and a positive mindset!' },
+    { trigger: 'how do I be more confident', response: 'Believe in yourself and take small steps forward!' },
+    { trigger: 'how do I handle stress', response: 'Take deep breaths, take breaks, and talk to someone you trust!' },
+    { trigger: 'can you tell a story', response: 'Sure! Once upon a time… What kind of story do you like?' },
+    { trigger: 'what’s your best advice', response: 'Be kind, stay curious, and never stop learning!' },
+    { trigger: 'do you like puzzles', response: 'Puzzles are great for the brain! Do you have a favorite?' },
+    { trigger: 'can you play games', response: 'I can chat about games! What’s your favorite one?' },
+    { trigger: 'what’s your favorite number', response: 'I like all numbers! Do you have a lucky one?' },
+    { trigger: 'how do I be creative', response: 'Try new things, make mistakes, and have fun with it!' },
+    { trigger: 'how do I stay focused', response: 'Set small goals, take breaks, and remove distractions!' },
+    { trigger: 'how do I be a good friend', response: 'Listen, support, and be there when needed!' }
+
+    
+
+    ];
+
+    function getTimestamp() {
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    function displayMessage(sender, message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${sender}`;
+
+        const textElement = document.createElement('span');
+        textElement.textContent = message;
+
+        const timestampElement = document.createElement('span');
+        timestampElement.className = 'timestamp';
+        timestampElement.textContent = getTimestamp();
+
+        messageElement.appendChild(textElement);
+        messageElement.appendChild(timestampElement);
+
+        messages.appendChild(messageElement);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function handleUserInput() {
+        const input = userInput.value.trim().toLowerCase();
+        if (!input) return;
+
+        displayMessage('user', input);
+
+        const match = dialogues.find(dialogue => input.includes(dialogue.trigger.toLowerCase()));
+        const response = match ? match.response : "Sorry, I didn\'t understand that.";
+
+        displayMessage('bot', response);
+        userInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', handleUserInput);
+    userInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') handleUserInput();
+    });
+
+    micBtn.addEventListener('click', () => {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.start();
+
+        recognition.onresult = (event) => {
+            userInput.value = event.results[0][0].transcript;
+            handleUserInput();
+        };
+
+        recognition.onerror = (event) => {
+            alert('Speech recognition error: ' + event.error);
+        };
+    });
+
+    signupLink.addEventListener('click', () => {
+        loginContainer.style.display = 'none';
+        signupContainer.style.display = 'flex';
+    });
+
+    loginLink.addEventListener('click', () => {
+        signupContainer.style.display = 'none';
+        loginContainer.style.display = 'flex';
+    });
+
+    signupBtn.addEventListener('click', () => {
+        const username = signupUsername.value.trim();
+        const password = signupPassword.value.trim();
+
+        if (users[username]) {
+            alert('Username already exists. Please choose another one.');
+        } else if (username && password) {
+            users[username] = password;
+            alert('Account created successfully! Please log in.');
+            signupContainer.style.display = 'none';
+            loginContainer.style.display = 'flex';
+        } else {
+            alert('Please fill in both fields.');
+        }
+    });
+
+    loginBtn.addEventListener('click', () => {
+        const username = loginUsername.value.trim();
+        const password = loginPassword.value.trim();
+
+        if (users[username] === password) {
+            loginContainer.style.display = 'none';
+            chatContainer.style.display = 'flex';
+        } else {
+            alert('Invalid username or password.');
+        }
+    });
+</script>
+
+</body>
+</html>
